@@ -1,2 +1,3 @@
 making a rebase
 hello world
+hi
