@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Karnataka Travel Planner — Enhanced</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+      min-height: 100vh;
+      color: #e2e8f0;
+      line-height: 1.6;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 20px auto;
+      padding: 24px;
+      border-radius: 16px;
+      background: rgba(30,41,59,0.85);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+    }
+
+    .map-header { text-align: center; margin-bottom: 20px; }
+    .map-header h1 {
+      font-size: 32px;
+      font-weight: 800;
+      background: linear-gradient(45deg, #fcd34d, #ef4444);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    .map-header p { color: #94a3b8; font-size: 15px; }
+
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 14px;
+      padding: 16px;
+    }
+
+    #leafletMap {
+      height: 520px;
+      width: 100%;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .controls h2 {
+      font-size: 18px;
+      color: #f8fafc;
+      margin-bottom: 8px;
+    }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 6px; }
+    input[type="date"], input[type="number"], select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.07);
+      color: #f8fafc;
+      font-size: 14px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(45deg, #60a5fa, #3b82f6);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 15px;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(96, 165, 250, 0.35); }
+
+    .pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.15);
+      margin: 2px 4px 6px 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .pill.active { background: rgba(34,197,94,0.15); border-color: rgba(34,197,94,0.6); color: #a7f3d0; }
+
+    .section-title { display: flex; align-items: center; gap: 8px; font-weight: 700; color: #f8fafc; margin-bottom: 10px; }
+    .muted { color: #94a3b8; font-size: 12px; }
+
+    .weather-result { margin-top: 10px; padding: 12px; border-radius: 8px; border-left: 4px solid #34d399; background: rgba(52, 211, 153, 0.08); }
+    .weather-result.warning { border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.08); }
+    .loading { text-align: center; color: #93c5fd; padding: 16px; }
+    .spinner { border: 3px solid rgba(147,197,253,0.3); border-radius: 50%; border-top: 3px solid #93c5fd; width: 28px; height: 28px; animation: spin 1s linear infinite; margin: 0 auto 8px; }
+    @keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }
+
+    .itinerary-day {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-left: 4px solid #60a5fa;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .day-header { color: #93c5fd; font-weight: 800; margin-bottom: 8px; font-size: 18px; }
+    .day-details { font-size: 14px; color: #cbd5e1; }
+    .transport-info { color: #a7f3d0; margin-top: 4px; font-size: 13px; }
+    .must-visit { color: #fcd34d; font-weight: 700; margin-left: 6px; }
+
+    .budget-box {
+      background: linear-gradient(45deg, #ef4444, #dc2626);
+      padding: 14px;
+      border-radius: 12px;
+      color: white;
+      display: grid; grid-template-columns: 2fr 1fr; gap: 8px; align-items: center;
+    }
+
+    .breakdown { margin-top: 6px; font-size: 13px; color: #f1f5f9; }
+    .breakdown span { display: inline-block; margin-right: 10px; margin-bottom: 6px; }
+
+    .list { list-style: disc; margin-left: 18px; }
+
+    .hidden { display: none; }
+
+    @media (max-width: 960px) {
+      .grid { grid-template-columns: 1fr; }
+      #leafletMap { height: 360px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="map-header">
+      <h1>Karnataka Travel Planner</h1>
+      <p>Select a district from the interactive map or the list to start planning</p>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div id="leafletMap"></div>
+      </div>
+
+      <div class="card controls">
+        <h2>Plan Your Trip</h2>
+        <div class="row" style="margin-bottom: 8px;">
+          <div>
+            <label>Start Date</label>
+            <input type="date" id="startDate" />
+          </div>
+          <div>
+            <label>End Date</label>
+            <input type="date" id="endDate" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-bottom: 8px;">
+          <div>
+            <label>Number of Travelers</label>
+            <input type="number" id="numberOfTravelers" min="1" />
+          </div>
+          <div>
+            <label>Budget Category</label>
+            <select id="budgetCategory">
+              <option value="budget">Budget</option>
+              <option value="midRange">Mid-Range</option>
+              <option value="luxury">Luxury</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row" style="margin-bottom: 8px;">
+          <div>
+            <label>Transport Method</label>
+            <select id="transportMethod">
+              <option value="car">Car (Chauffeured)</option>
+              <option value="selfDrive">Self-Drive</option>
+              <option value="bus">Bus</option>
+              <option value="train">Train</option>
+              <option value="flight">Flight</option>
+            </select>
+          </div>
+          <div>
+            <label>Daily Sightseeing Hours</label>
+            <input type="number" id="dailyHours" min="4" max="12" value="8" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-bottom: 8px;">
+          <div>
+            <label>Est. Daily Hotel Cost (₹ per person)</label>
+            <input type="number" id="estimatedHotelCost" min="0" />
+          </div>
+          <div>
+            <label>Est. Daily Food Cost (₹ per person)</label>
+            <input type="number" id="estimatedFoodCost" min="0" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-bottom: 8px;">
+          <div>
+            <label>Est. Daily Local Transport (₹ per person)</label>
+            <input type="number" id="estimatedTransportCost" min="0" />
+          </div>
+          <div>
+            <label>Shopping Budget (₹ per person per day)</label>
+            <input type="number" id="shoppingPerDay" min="0" value="0" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-bottom: 12px;">
+          <div>
+            <label>Optional Activities (₹ per person per day)</label>
+            <input type="number" id="optionalActivitiesPerDay" min="0" value="0" />
+          </div>
+          <div>
+            <label>Contingency (%)</label>
+            <input type="number" id="contingencyPercent" min="0" max="30" value="10" />
+          </div>
+        </div>
+
+        <div style="margin-bottom: 8px;">
+          <div class="section-title">🎯 Interests</div>
+          <div id="interestPills"></div>
+          <div class="muted">Toggle to prioritize attractions you care about. Must‑visit spots are always considered.</div>
+        </div>
+
+        <button id="planBtn" class="btn" style="margin-top: 10px;">Check Weather & Plan Trip</button>
+
+        <div id="districtHint" class="muted" style="margin-top: 8px;">Tip: Click a marker on the map to choose a district.</div>
+
+        <div id="weatherResult" style="margin-top: 12px;"></div>
+        <div id="transportCostAnalysis" style="margin-top: 12px;"></div>
+        <div id="transportCostComparison" class="card hidden" style="margin-top: 12px;">
+          <div class="section-title">📊 Transportation Cost Comparison</div>
+          <div id="comparisonContent"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="detailsPage" class="card hidden" style="margin-top: 16px;">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom: 12px;">
+        <button class="btn" id="backBtn" style="width:auto; padding: 8px 12px; background: linear-gradient(45deg, #60a5fa, #3b82f6);">← Back</button>
+        <h2 id="districtTitle" style="font-size: 22px; color: #fcd34d;">Select a district to begin</h2>
+      </div>
+
+      <div class="section-title">🗺️ Your Complete Itinerary</div>
+      <div id="itineraryContent"></div>
+      <div id="totalBudget" style="margin-top: 10px;"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    const interestsMaster = ['historical', 'religious', 'nature', 'wildlife', 'shopping', 'cultural', 'beach', 'architecture'];
+
+    const districts = {
+      'Bengaluru Urban': {
+        coords: { lat: 12.9716, lon: 77.5946 },
+        bestMonths: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+        attractions: [
+          { name: 'Lalbagh Botanical Garden', area: 'South', interest: 'nature', durationMinutes: 120, transport: 'Metro/Bus', costBudget: 20, costMidRange: 50, costLuxury: 100, mustVisit: true },
+          { name: 'Bangalore Palace', area: 'North', interest: 'historical', durationMinutes: 90, transport: 'Taxi/Bus', costBudget: 240, costMidRange: 350, costLuxury: 500, mustVisit: true },
+          { name: 'Cubbon Park', area: 'Central', interest: 'nature', durationMinutes: 90, transport: 'Metro/Walk', costBudget: 0, costMidRange: 0, costLuxury: 0 },
+          { name: 'ISKCON Temple', area: 'West', interest: 'religious', durationMinutes: 75, transport: 'Metro/Bus', costBudget: 0, costMidRange: 0, costLuxury: 0 },
+          { name: 'UB City', area: 'Central', interest: 'shopping', durationMinutes: 120, transport: 'Metro/Taxi', costBudget: 0, costMidRange: 0, costLuxury: 0 },
+          { name: 'Tipu Sultan Summer Palace', area: 'South', interest: 'historical', durationMinutes: 60, transport: 'Metro/Bus', costBudget: 15, costMidRange: 25, costLuxury: 50 }
+        ],
+        hotels: [
+          { name: 'The Oberoi', area: 'MG Road', priceBudget: 10000, priceMidRange: 15000, priceLuxury: 25000, rating: '5★' },
+          { name: 'ITC Gardenia', area: 'UB City', priceBudget: 8000, priceMidRange: 12000, priceLuxury: 20000, rating: '5★' },
+          { name: 'Ibis City Centre', area: 'Koramangala', priceBudget: 3000, priceMidRange: 4000, priceLuxury: 6000, rating: '4★' },
+          { name: 'Budget Inn', area: 'MG Road', priceBudget: 1500, priceMidRange: 2000, priceLuxury: 2500, rating: '3★' }
+        ],
+        restaurants: [
+          { name: 'Toit Brewpub', cuisine: 'Continental', costBudget: 1000, costMidRange: 1500, costLuxury: 2000 },
+          { name: 'MTR', cuisine: 'South Indian', costBudget: 200, costMidRange: 300, costLuxury: 400 },
+          { name: 'Vidyarthi Bhavan', cuisine: 'South Indian', costBudget: 100, costMidRange: 150, costLuxury: 200 }
+        ],
+        transport: {
+          mode: 'Metro, Bus, Taxi, Auto',
+          costFromBangalore: { car: 500, selfDrive: 300, bus: 100, train: 100, flight: 0 }
+        }
+      },
+      'Mysuru': {
+        coords: { lat: 12.2958, lon: 76.6394 },
+        bestMonths: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+        attractions: [
+          { name: 'Mysore Palace', area: 'Center', interest: 'historical', durationMinutes: 150, transport: 'Auto/Taxi', costBudget: 50, costMidRange: 75, costLuxury: 100, mustVisit: true },
+          { name: 'Chamundeshwari Temple', area: 'Chamundi Hills', interest: 'religious', durationMinutes: 150, transport: 'Bus/Taxi', costBudget: 0, costMidRange: 0, costLuxury: 0 },
+          { name: 'Brindavan Gardens', area: 'KRS', interest: 'nature', durationMinutes: 150, transport: 'Bus/Taxi', costBudget: 25, costMidRange: 50, costLuxury: 75, mustVisit: true },
+          { name: 'Mysore Zoo', area: 'Center', interest: 'wildlife', durationMinutes: 150, transport: 'Auto/Bus', costBudget: 80, costMidRange: 120, costLuxury: 150 }
+        ],
+        hotels: [
+          { name: 'Radisson Blu Plaza', area: 'City Center', priceBudget: 7000, priceMidRange: 8000, priceLuxury: 12000, rating: '5★' },
+          { name: 'Royal Orchid Metropole', area: 'Near Palace', priceBudget: 5000, priceMidRange: 6000, priceLuxury: 10000, rating: '4★' },
+          { name: 'Sandesh The Prince', area: 'City Center', priceBudget: 2500, priceMidRange: 3000, priceLuxury: 5000, rating: '3★' }
+        ],
+        restaurants: [
+          { name: 'RRR Restaurant', cuisine: 'South Indian', costBudget: 300, costMidRange: 400, costLuxury: 500 },
+          { name: 'Mylari Hotel', cuisine: 'Local', costBudget: 150, costMidRange: 200, costLuxury: 250 }
+        ],
+        transport: {
+          mode: 'Bus, Train, Taxi',
+          costFromBangalore: { car: 2500, selfDrive: 1500, bus: 400, train: 300, flight: 0 }
+        }
+      },
+      'Coorg': {
+        coords: { lat: 12.3375, lon: 75.8069 },
+        bestMonths: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'],
+        attractions: [
+          { name: 'Abbey Falls', area: 'Madikeri', interest: 'nature', durationMinutes: 90, transport: 'Car/Taxi', costBudget: 30, costMidRange: 50, costLuxury: 80, mustVisit: true },
+          { name: 'Raja’s Seat', area: 'Madikeri', interest: 'nature', durationMinutes: 60, transport: 'Car/Auto', costBudget: 0, costMidRange: 0, costLuxury: 0 },
+          { name: 'Dubare Elephant Camp', area: 'Dubare', interest: 'wildlife', durationMinutes: 210, transport: 'Car', costBudget: 200, costMidRange: 300, costLuxury: 400 },
+          { name: 'Coffee Plantation Tour', area: 'Madikeri', interest: 'cultural', durationMinutes: 120, transport: 'Car', costBudget: 100, costMidRange: 150, costLuxury: 200 }
+        ],
+        hotels: [
+          { name: 'The Tamara Coorg', area: 'Madikeri', priceBudget: 10000, priceMidRange: 12000, priceLuxury: 18000, rating: '5★' },
+          { name: 'Evolve Back (Orange County)', area: 'Kushalnagar', priceBudget: 7000, priceMidRange: 8000, priceLuxury: 15000, rating: '4★' },
+          { name: 'Club Mahindra', area: 'Madikeri', priceBudget: 4000, priceMidRange: 5000, priceLuxury: 8000, rating: '4★' }
+        ],
+        restaurants: [
+          { name: 'Coorg Cuisine', cuisine: 'Kodava', costBudget: 400, costMidRange: 500, costLuxury: 600 },
+          { name: 'East End Hotel', cuisine: 'Multi-cuisine', costBudget: 300, costMidRange: 400, costLuxury: 500 }
+        ],
+        transport: {
+          mode: 'Car rental recommended',
+          costFromBangalore: { car: 4000, selfDrive: 2500, bus: 600, train: 0, flight: 0 }
+        }
+      },
+      'Hampi': {
+        coords: { lat: 15.335, lon: 76.46 },
+        bestMonths: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+        attractions: [
+          { name: 'Virupaksha Temple', area: 'Hampi Bazaar', interest: 'religious', durationMinutes: 90, transport: 'Walk/Bicycle', costBudget: 0, costMidRange: 0, costLuxury: 0, mustVisit: true },
+          { name: 'Vittala Temple', area: 'Hampi', interest: 'historical', durationMinutes: 150, transport: 'Bicycle/Auto', costBudget: 30, costMidRange: 50, costLuxury: 75, mustVisit: true },
+          { name: 'Lotus Mahal', area: 'Zenana Enclosure', interest: 'historical', durationMinutes: 60, transport: 'Bicycle', costBudget: 30, costMidRange: 50, costLuxury: 75 },
+          { name: 'Elephant Stables', area: 'Zenana Enclosure', interest: 'historical', durationMinutes: 45, transport: 'Walk', costBudget: 30, costMidRange: 50, costLuxury: 75 }
+        ],
+        hotels: [
+          { name: 'Clarks Inn Hampi', area: 'Hampi', priceBudget: 3000, priceMidRange: 4000, priceLuxury: 6000, rating: '4★' },
+          { name: 'Heritage Resort', area: 'Hampi Bazaar', priceBudget: 2500, priceMidRange: 3000, priceLuxury: 5000, rating: '3★' },
+          { name: 'Malligi Hotel', area: 'Hospet', priceBudget: 2000, priceMidRange: 2500, priceLuxury: 3500, rating: '3★' }
+        ],
+        restaurants: [
+          { name: 'Mango Tree', cuisine: 'Multi-cuisine', costBudget: 300, costMidRange: 400, costLuxury: 500 },
+          { name: 'Laughing Buddha', cuisine: 'Continental', costBudget: 250, costMidRange: 300, costLuxury: 400 }
+        ],
+        transport: {
+          mode: 'Train to Hospet, then bus/taxi',
+          costFromBangalore: { car: 5000, selfDrive: 3000, bus: 800, train: 500, flight: 0 }
+        }
+      },
+      'Udupi': {
+        coords: { lat: 13.3409, lon: 74.7421 },
+        bestMonths: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'],
+        attractions: [
+          { name: 'Udupi Sri Krishna Temple', area: 'Udupi', interest: 'religious', durationMinutes: 90, transport: 'Walk/Auto', costBudget: 0, costMidRange: 0, costLuxury: 0, mustVisit: true },
+          { name: 'Malpe Beach', area: 'Malpe', interest: 'beach', durationMinutes: 150, transport: 'Bus/Auto', costBudget: 0, costMidRange: 0, costLuxury: 0 },
+          { name: 'St. Mary’s Island', area: 'Malpe', interest: 'nature', durationMinutes: 240, transport: 'Boat from Malpe', costBudget: 150, costMidRange: 200, costLuxury: 300, mustVisit: true },
+          { name: 'Kaup Beach & Lighthouse', area: 'Kaup', interest: 'beach', durationMinutes: 120, transport: 'Bus', costBudget: 0, costMidRange: 0, costLuxury: 0 }
+        ],
+        hotels: [
+          { name: 'Paradise Isle', area: 'Malpe', priceBudget: 3500, priceMidRange: 4000, priceLuxury: 7000, rating: '4★' },
+          { name: 'Udupi Residency', area: 'Town', priceBudget: 2000, priceMidRange: 2500, priceLuxury: 4000, rating: '3★' }
+        ],
+        restaurants: [
+          { name: 'Woodlands', cuisine: 'South Indian', costBudget: 200, costMidRange: 250, costLuxury: 350 },
+          { name: 'Mitra Samaj', cuisine: 'Udupi', costBudget: 150, costMidRange: 200, costLuxury: 300 }
+        ],
+        transport: {
+          mode: 'Bus, Train',
+          costFromBangalore: { car: 6000, selfDrive: 3500, bus: 900, train: 600, flight: 0 }
+        }
+      },
+      'Mangaluru': {
+        coords: { lat: 12.9141, lon: 74.8560 },
+        bestMonths: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'],
+        attractions: [
+          { name: 'Panambur Beach', area: 'Panambur', interest: 'beach', durationMinutes: 150, transport: 'Bus/Auto', costBudget: 0, costMidRange: 0, costLuxury: 0 },
+          { name: 'Kadri Manjunath Temple', area: 'Kadri', interest: 'religious', durationMinutes: 60, transport: 'Auto/Bus', costBudget: 0, costMidRange: 0, costLuxury: 0 },
+          { name: 'St. Aloysius Chapel', area: 'Center', interest: 'architecture', durationMinutes: 45, transport: 'Auto', costBudget: 0, costMidRange: 0, costLuxury: 0 },
+          { name: 'Pilikula Nisargadhama', area: 'Pilikula', interest: 'wildlife', durationMinutes: 210, transport: 'Bus/Taxi', costBudget: 50, costMidRange: 75, costLuxury: 100, mustVisit: true }
+        ],
+        hotels: [
+          { name: 'The Ocean Pearl', area: 'Center', priceBudget: 5000, priceMidRange: 6000, priceLuxury: 9000, rating: '4★' },
+          { name: 'Goldfinch', area: 'Center', priceBudget: 3500, priceMidRange: 4000, priceLuxury: 6000, rating: '4★' }
+        ],
+        restaurants: [
+          { name: 'Gajalee', cuisine: 'Seafood', costBudget: 400, costMidRange: 500, costLuxury: 800 },
+          { name: 'Machali', cuisine: 'Coastal', costBudget: 300, costMidRange: 400, costLuxury: 500 }
+        ],
+        transport: {
+          mode: 'Flight, Bus, Train',
+          costFromBangalore: { car: 5500, selfDrive: 3200, bus: 850, train: 550, flight: 3000 }
+        }
+      },
+      'Chikmagalur': {
+        coords: { lat: 13.3161, lon: 75.7720 },
+        bestMonths: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'],
+        attractions: [
+          { name: 'Mullayanagiri Peak', area: 'Mullayanagiri', interest: 'nature', durationMinutes: 240, transport: 'Car/Trek', costBudget: 0, costMidRange: 0, costLuxury: 0, mustVisit: true },
+          { name: 'Coffee Museum', area: 'Town', interest: 'cultural', durationMinutes: 75, transport: 'Auto/Car', costBudget: 25, costMidRange: 50, costLuxury: 75 },
+          { name: 'Hebbe Falls', area: 'Kemmangundi', interest: 'nature', durationMinutes: 240, transport: 'Car + Trek', costBudget: 20, costMidRange: 30, costLuxury: 50 },
+          { name: 'Baba Budangiri', area: 'Datta Peetha', interest: 'religious', durationMinutes: 180, transport: 'Car', costBudget: 0, costMidRange: 0, costLuxury: 0 }
+        ],
+        hotels: [
+          { name: 'The Serai', area: 'Outskirts', priceBudget: 8000, priceMidRange: 10000, priceLuxury: 15000, rating: '5★' },
+          { name: 'Java Rain', area: 'Outskirts', priceBudget: 5000, priceMidRange: 6000, priceLuxury: 10000, rating: '4★' }
+        ],
+        restaurants: [
+          { name: 'Town Canteen', cuisine: 'South Indian', costBudget: 150, costMidRange: 200, costLuxury: 250 },
+          { name: 'Planters Court', cuisine: 'Multi-cuisine', costBudget: 300, costMidRange: 400, costLuxury: 600 }
+        ],
+        transport: {
+          mode: 'Car rental recommended',
+          costFromBangalore: { car: 3500, selfDrive: 2000, bus: 500, train: 0, flight: 0 }
+        }
+      },
+      'Shivamogga': {
+        coords: { lat: 13.9299, lon: 75.5681 },
+        bestMonths: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+        attractions: [
+          { name: 'Jog Falls', area: 'Sagara', interest: 'nature', durationMinutes: 210, transport: 'Bus/Car', costBudget: 25, costMidRange: 40, costLuxury: 60, mustVisit: true },
+          { name: 'Sakrebailu Elephant Camp', area: 'Shimoga', interest: 'wildlife', durationMinutes: 150, transport: 'Car', costBudget: 50, costMidRange: 70, costLuxury: 100 },
+          { name: 'Kundadri Hill', area: 'Agumbe', interest: 'nature', durationMinutes: 210, transport: 'Car + Trek', costBudget: 0, costMidRange: 0, costLuxury: 0 },
+          { name: 'Tyavarekoppa Lion Safari', area: 'Shimoga', interest: 'wildlife', durationMinutes: 150, transport: 'Car', costBudget: 50, costMidRange: 70, costLuxury: 100 }
+        ],
+        hotels: [
+          { name: 'Clarks Inn', area: 'City Center', priceBudget: 3500, priceMidRange: 4000, priceLuxury: 6000, rating: '4★' },
+          { name: 'KSTDC Mayura Gerusoppa', area: 'Jog Falls', priceBudget: 1800, priceMidRange: 2000, priceLuxury: 3000, rating: '3★' }
+        ],
+        restaurants: [
+          { name: 'Mayura', cuisine: 'South Indian', costBudget: 200, costMidRange: 250, costLuxury: 350 },
+          { name: 'Kamat', cuisine: 'Vegetarian', costBudget: 150, costMidRange: 200, costLuxury: 300 }
+        ],
+        transport: {
+          mode: 'Bus, Car',
+          costFromBangalore: { car: 4500, selfDrive: 2800, bus: 700, train: 400, flight: 0 }
+        }
+      },
+      'Belagavi': {
+        coords: { lat: 15.85, lon: 74.5 },
+        bestMonths: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+        attractions: [
+          { name: 'Belagavi Fort', area: 'Fort Area', interest: 'historical', durationMinutes: 120, transport: 'Auto/Taxi', costBudget: 0, costMidRange: 0, costLuxury: 0 },
+          { name: 'Gokak Falls', area: 'Gokak', interest: 'nature', durationMinutes: 180, transport: 'Bus/Car', costBudget: 0, costMidRange: 0, costLuxury: 0, mustVisit: true },
+          { name: 'Kamala Basadi', area: 'Fort Area', interest: 'religious', durationMinutes: 60, transport: 'Auto/Walk', costBudget: 0, costMidRange: 0, costLuxury: 0 }
+        ],
+        hotels: [
+          { name: 'Hotel Eefa', area: 'Center', priceBudget: 2500, priceMidRange: 3000, priceLuxury: 5000, rating: '4★' },
+          { name: 'UK 27 The Fern', area: 'Near Station', priceBudget: 2000, priceMidRange: 2500, priceLuxury: 4000, rating: '4★' }
+        ],
+        restaurants: [
+          { name: 'Niyaaz', cuisine: 'North Karnataka', costBudget: 400, costMidRange: 500, costLuxury: 600 },
+          { name: 'Sankam', cuisine: 'South Indian', costBudget: 200, costMidRange: 250, costLuxury: 350 }
+        ],
+        transport: {
+          mode: 'Bus, Train, Flight',
+          costFromBangalore: { car: 7500, selfDrive: 4500, bus: 1200, train: 800, flight: 4000 }
+        }
+      },
+      'Hubballi-Dharwad': {
+        coords: { lat: 15.3647, lon: 75.1239 },
+        bestMonths: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+        attractions: [
+          { name: 'Unkal Lake', area: 'Hubballi', interest: 'nature', durationMinutes: 90, transport: 'Auto/Bus', costBudget: 0, costMidRange: 0, costLuxury: 0 },
+          { name: 'Nrupatunga Betta', area: 'Hubballi', interest: 'nature', durationMinutes: 90, transport: 'Auto/Walk', costBudget: 0, costMidRange: 0, costLuxury: 0 },
+          { name: 'Chandramouleshwara Temple', area: 'Hubballi', interest: 'religious', durationMinutes: 60, transport: 'Auto', costBudget: 0, costMidRange: 0, costLuxury: 0 }
+        ],
+        hotels: [
+          { name: 'Denissons', area: 'Hubballi', priceBudget: 3000, priceMidRange: 3500, priceLuxury: 5500, rating: '4★' },
+          { name: 'Naveen Lakeside', area: 'Hubballi', priceBudget: 2000, priceMidRange: 2500, priceLuxury: 4000, rating: '3★' }
+        ],
+        restaurants: [
+          { name: 'Basaveshwar Khanavali', cuisine: 'North Karnataka', costBudget: 150, costMidRange: 200, costLuxury: 250 },
+          { name: 'Gokul', cuisine: 'South Indian', costBudget: 200, costMidRange: 250, costLuxury: 350 }
+        ],
+        transport: {
+          mode: 'Bus, Train, Flight',
+          costFromBangalore: { car: 6000, selfDrive: 3500, bus: 900, train: 600, flight: 3500 }
+        }
+      },
+      'Kalaburagi': {
+        coords: { lat: 17.3300, lon: 76.8300 },
+        bestMonths: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb'],
+        attractions: [
+          { name: 'Gulbarga Fort', area: 'Center', interest: 'historical', durationMinutes: 150, transport: 'Auto/Taxi', costBudget: 15, costMidRange: 25, costLuxury: 40, mustVisit: true },
+          { name: 'Khwaja Bande Nawaz Dargah', area: 'Center', interest: 'religious', durationMinutes: 90, transport: 'Auto', costBudget: 0, costMidRange: 0, costLuxury: 0 },
+          { name: 'Sharana Basaveshwara Temple', area: 'Center', interest: 'religious', durationMinutes: 60, transport: 'Auto', costBudget: 0, costMidRange: 0, costLuxury: 0 }
+        ],
+        hotels: [
+          { name: 'Hotel Heritage Inn', area: 'Center', priceBudget: 1800, priceMidRange: 2000, priceLuxury: 3500, rating: '3★' },
+          { name: 'Hotel Santosh', area: 'Center', priceBudget: 1300, priceMidRange: 1500, priceLuxury: 2500, rating: '3★' }
+        ],
+        restaurants: [
+          { name: 'Almaida', cuisine: 'Mughlai', costBudget: 300, costMidRange: 400, costLuxury: 600 },
+          { name: 'Kamat', cuisine: 'South Indian', costBudget: 150, costMidRange: 200, costLuxury: 300 }
+        ],
+        transport: {
+          mode: 'Bus, Train',
+          costFromBangalore: { car: 9000, selfDrive: 5500, bus: 1500, train: 1000, flight: 4500 }
+        }
+      },
+      'Hassan': {
+        coords: { lat: 13.007, lon: 76.102 },
+        bestMonths: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+        attractions: [
+          { name: 'Belur Chennakesava Temple', area: 'Belur', interest: 'architecture', durationMinutes: 120, transport: 'Car', costBudget: 0, costMidRange: 0, costLuxury: 0, mustVisit: true },
+          { name: 'Halebidu Hoysaleswara', area: 'Halebidu', interest: 'architecture', durationMinutes: 120, transport: 'Car', costBudget: 0, costMidRange: 0, costLuxury: 0 },
+          { name: 'Gorur Dam', area: 'Gorur', interest: 'nature', durationMinutes: 120, transport: 'Car', costBudget: 0, costMidRange: 0, costLuxury: 0 }
+        ],
+        hotels: [
+          { name: 'Hoysala Village Resort', area: 'Hassan', priceBudget: 4000, priceMidRange: 6000, priceLuxury: 9000, rating: '4★' },
+          { name: 'Mallige Residency', area: 'Hassan', priceBudget: 2000, priceMidRange: 3000, priceLuxury: 4500, rating: '3★' }
+        ],
+        restaurants: [
+          { name: 'Hotel Raama', cuisine: 'South Indian', costBudget: 200, costMidRange: 300, costLuxury: 450 },
+          { name: 'Surabhi', cuisine: 'Multi-cuisine', costBudget: 250, costMidRange: 350, costLuxury: 500 }
+        ],
+        transport: {
+          mode: 'Car, Bus, Train',
+          costFromBangalore: { car: 3000, selfDrive: 1800, bus: 500, train: 400, flight: 0 }
+        }
+      },
+      'Karwar (Uttara Kannada)': {
+        coords: { lat: 14.8136, lon: 74.1297 },
+        bestMonths: ['Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+        attractions: [
+          { name: 'Karwar Beach', area: 'Karwar', interest: 'beach', durationMinutes: 150, transport: 'Auto/Walk', costBudget: 0, costMidRange: 0, costLuxury: 0 },
+          { name: 'Devbagh Beach', area: 'Karwar', interest: 'beach', durationMinutes: 180, transport: 'Boat/Auto', costBudget: 100, costMidRange: 150, costLuxury: 250 },
+          { name: 'Sadashivgad Fort', area: 'Karwar', interest: 'historical', durationMinutes: 90, transport: 'Auto/Car', costBudget: 0, costMidRange: 0, costLuxury: 0 }
+        ],
+        hotels: [
+          { name: 'Cintacor Island Resort', area: 'Karwar', priceBudget: 6000, priceMidRange: 8000, priceLuxury: 12000, rating: '4★' },
+          { name: 'Sterling Karwar', area: 'Karwar', priceBudget: 3500, priceMidRange: 4500, priceLuxury: 7000, rating: '4★' }
+        ],
+        restaurants: [
+          { name: 'Swetha Lunch Home', cuisine: 'Seafood', costBudget: 300, costMidRange: 450, costLuxury: 700 },
+          { name: 'Usmans', cuisine: 'Coastal', costBudget: 250, costMidRange: 350, costLuxury: 500 }
+        ],
+        transport: {
+          mode: 'Bus, Train',
+          costFromBangalore: { car: 6500, selfDrive: 3800, bus: 1000, train: 700, flight: 0 }
+        }
+      }
+    };
+
+    let currentDistrict = null;
+
+    const interestState = new Set(interestsMaster);
+
+    function el(id) { return document.getElementById(id); }
+
+    function initInterestPills() {
+      const container = el('interestPills');
+      container.innerHTML = '';
+      interestsMaster.forEach(int => {
+        const span = document.createElement('span');
+        span.className = 'pill active';
+        span.dataset.interest = int;
+        span.textContent = int.charAt(0).toUpperCase() + int.slice(1);
+        span.addEventListener('click', () => {
+          if (interestState.has(int)) {
+            interestState.delete(int);
+            span.classList.remove('active');
+          } else {
+            interestState.add(int);
+            span.classList.add('active');
+          }
+          // re-plan silently if dates ready and district selected
+          silentReplan();
+        });
+        container.appendChild(span);
+      });
+    }
+
+    function initMap() {
+      const map = L.map('leafletMap', { scrollWheelZoom: true }).setView([14.5, 75.8], 6.5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+      }).addTo(map);
+
+      Object.entries(districts).forEach(([name, data]) => {
+        const marker = L.marker([data.coords.lat, data.coords.lon]).addTo(map);
+        marker.bindPopup(`<strong>${name}</strong>`);
+        marker.on('click', () => selectDistrict(name));
+      });
+    }
+
+    function selectDistrict(name) {
+      currentDistrict = name;
+      el('districtTitle').textContent = name;
+      el('districtHint').textContent = `Selected: ${name}`;
+      el('detailsPage').classList.remove('hidden');
+      silentReplan();
+    }
+
+    function goBack() {
+      currentDistrict = null;
+      el('districtTitle').textContent = 'Select a district to begin';
+      el('detailsPage').classList.add('hidden');
+    }
+
+    async function getWeatherDataReal(lat, lon, startDateStr, endDateStr) {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&start_date=${startDateStr}&end_date=${endDateStr}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('weather fetch failed');
+      return res.json();
+    }
+
+    function simpleWeatherFallback() {
+      const weatherConditions = ['Sunny', 'Partly Cloudy', 'Cloudy', 'Rainy'];
+      const randomCondition = weatherConditions[Math.floor(Math.random() * weatherConditions.length)];
+      const randomTemp = Math.floor(Math.random() * 15) + 20;
+      const randomHumidity = Math.floor(Math.random() * 50) + 40;
+      return { temp: randomTemp, condition: randomCondition, humidity: randomHumidity };
+    }
+
+    function formatDateISO(d) { return d.toISOString().split('T')[0]; }
+
+    function getBudgetKey(category) {
+      return 'cost' + category.charAt(0).toUpperCase() + category.slice(1);
+    }
+
+    function calculateTransportCost(district, transportMethod, numberOfTravelers) {
+      const costs = district.transport.costFromBangalore || {};
+      let cost = costs[transportMethod] || 0;
+      if (transportMethod === 'bus' || transportMethod === 'train' || transportMethod === 'flight') cost *= numberOfTravelers;
+      else if (transportMethod === 'car' || transportMethod === 'selfDrive') cost *= (numberOfTravelers > 1 ? 1.5 : 1);
+      return cost;
+    }
+
+    function estimateTravelMinutes(prevArea, nextArea) {
+      if (!prevArea || !nextArea) return 0;
+      return prevArea === nextArea ? 15 : 45;
+    }
+
+    function generateItinerary(startDate, endDate) {
+      if (!currentDistrict) return;
+      const days = Math.max(1, Math.ceil((endDate - startDate) / (1000*60*60*24)) + 1);
+      const district = districts[currentDistrict];
+      const numberOfTravelers = parseInt(el('numberOfTravelers').value) || 1;
+      const budgetCategory = el('budgetCategory').value;
+      const budgetKey = getBudgetKey(budgetCategory);
+      const dailyHours = Math.max(4, Math.min(12, parseInt(el('dailyHours').value) || 8));
+      const dayCapacity = dailyHours * 60;
+
+      const estHotel = parseFloat(el('estimatedHotelCost').value) || 0;
+      const estFood = parseFloat(el('estimatedFoodCost').value) || 0;
+      const estLocalTransport = parseFloat(el('estimatedTransportCost').value) || 0;
+      const shoppingPerDay = parseFloat(el('shoppingPerDay').value) || 0;
+      const optionalActivitiesPerDay = parseFloat(el('optionalActivitiesPerDay').value) || 0;
+      const contingencyPercent = Math.max(0, Math.min(50, parseFloat(el('contingencyPercent').value) || 0));
+
+      const mustVisit = district.attractions.filter(a => a.mustVisit);
+      const preferred = district.attractions.filter(a => !a.mustVisit && interestState.has(a.interest));
+      const others = district.attractions.filter(a => !a.mustVisit && !interestState.has(a.interest));
+
+      const pool = [...mustVisit, ...preferred, ...others];
+      const used = new Set();
+
+      let itineraryHTML = '';
+      let totalTrip = 0;
+
+      for (let day = 0; day < Math.min(days, 10); day++) {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + day);
+
+        let remaining = dayCapacity;
+        let prevArea = null;
+        const chosen = [];
+
+        for (let i = 0; i < pool.length; i++) {
+          const a = pool[i];
+          if (used.has(a.name)) continue;
+          const travel = estimateTravelMinutes(prevArea, a.area);
+          const need = travel + (a.durationMinutes || 90);
+          if (need <= remaining) {
+            chosen.push({ ...a, travelMinutes: travel });
+            used.add(a.name);
+            remaining -= need;
+            prevArea = a.area;
+          }
+          if (remaining < 45) break;
+        }
+
+        const hotel = district.hotels[day % district.hotels.length];
+        const restaurant = district.restaurants[day % district.restaurants.length];
+
+        let dailySubtotal = 0;
+        let attractionsCost = 0;
+        chosen.forEach(attr => {
+          const c = (attr[budgetKey] || 0) * numberOfTravelers;
+          attractionsCost += c;
+          dailySubtotal += c;
+        });
+        const hotelCost = estHotel * numberOfTravelers;
+        const foodCost = estFood * numberOfTravelers;
+        const localTransportCost = estLocalTransport * numberOfTravelers;
+        const shoppingCost = shoppingPerDay * numberOfTravelers;
+        const optionalCost = optionalActivitiesPerDay * numberOfTravelers;
+
+        dailySubtotal += hotelCost + foodCost + localTransportCost + shoppingCost + optionalCost;
+        const contingency = Math.round((dailySubtotal * contingencyPercent) / 100);
+        const dailyTotal = dailySubtotal + contingency;
+        totalTrip += dailyTotal;
+
+        const chosenHtml = chosen.map((attr, idx) => `
+          <li>
+            ${idx > 0 ? `<span class="muted">Travel ${attr.travelMinutes} min →</span> ` : ''}
+            ${attr.name} ${attr.mustVisit ? '<span class="must-visit">⭐ Must Visit</span>' : ''}
+            <span class="muted">(${attr.interest}, ${Math.round(attr.durationMinutes)} min)</span>
+            ${attr[budgetKey] ? ` — Entry: ₹${(attr[budgetKey]*numberOfTravelers).toLocaleString()}` : ''}
+            <div class="transport-info">🚗 ${attr.transport}</div>
+          </li>
+        `).join('');
+
+        itineraryHTML += `
+          <div class="itinerary-day">
+            <div class="day-header">Day ${day + 1} — ${currentDate.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+            <div class="day-details">
+              <div style="margin-bottom: 6px;"><strong>🏛️ Plan:</strong></div>
+              <ul class="list">${chosenHtml || '<li>No more attractions fit today. Enjoy leisure time!</li>'}</ul>
+
+              <div style="margin: 10px 0 6px;"><strong>🏨 Stay:</strong></div>
+              <div style="margin-left: 14px;">${hotel.name} — ${hotel.area} <span style="color:#fcd34d;">${hotel.rating}</span></div>
+
+              <div style="margin: 10px 0 6px;"><strong>🍽️ Dine:</strong></div>
+              <div style="margin-left: 14px;">${restaurant.name} (${restaurant.cuisine})</div>
+
+              <div class="breakdown">
+                <span>🎟️ Attractions: ₹${attractionsCost.toLocaleString()}</span>
+                <span>🏨 Hotel: ₹${hotelCost.toLocaleString()}</span>
+                <span>🍽️ Food: ₹${foodCost.toLocaleString()}</span>
+                <span>🚌 Local: ₹${localTransportCost.toLocaleString()}</span>
+                <span>🛍️ Shopping: ₹${shoppingCost.toLocaleString()}</span>
+                <span>✨ Optional: ₹${optionalCost.toLocaleString()}</span>
+                <span>🔒 Contingency: ₹${contingency.toLocaleString()}</span>
+                <span style="font-weight: 800; color:#93c5fd;">Total: ₹${dailyTotal.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      const transportMethod = el('transportMethod').value;
+      const initialTransportCost = calculateTransportCost(district, transportMethod, numberOfTravelers);
+      const grandTotal = totalTrip + initialTransportCost;
+
+      el('itineraryContent').innerHTML = itineraryHTML;
+      el('totalBudget').innerHTML = `
+        <div class="budget-box">
+          <div>
+            <div style="font-size: 17px; font-weight: 800;">Total Trip Budget (${numberOfTravelers} traveler${numberOfTravelers>1?'s':''})</div>
+            <div class="muted">Includes initial intercity transport</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 24px; font-weight: 800;">₹${grandTotal.toLocaleString()}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function checkWeatherAndPlan() {
+      const startDateStr = el('startDate').value;
+      const endDateStr = el('endDate').value;
+      const weatherResult = el('weatherResult');
+      const transportCostAnalysisDiv = el('transportCostAnalysis');
+      const transportCostComparisonDiv = el('transportCostComparison');
+      const comparisonContentDiv = el('comparisonContent');
+
+      if (!currentDistrict) {
+        weatherResult.innerHTML = '<div class="weather-result warning">Please select a district from the map.</div>';
+        return;
+      }
+
+      if (!startDateStr || !endDateStr) {
+        weatherResult.innerHTML = '<div class="weather-result warning">Please select both start and end dates.</div>';
+        el('itineraryContent').innerHTML = '';
+        el('totalBudget').innerHTML = '';
+        transportCostAnalysisDiv.innerHTML = '';
+        transportCostComparisonDiv.classList.add('hidden');
+        comparisonContentDiv.innerHTML = '';
+        return;
+      }
+
+      const start = new Date(startDateStr);
+      const end = new Date(endDateStr);
+      const district = districts[currentDistrict];
+      const numberOfTravelers = parseInt(el('numberOfTravelers').value) || 1;
+      const transportMethod = el('transportMethod').value;
+
+      weatherResult.innerHTML = '<div class="loading"><div class="spinner"></div>Fetching weather & planning itinerary...</div>';
+      transportCostAnalysisDiv.innerHTML = '<div class="loading"><div class="spinner"></div>Calculating transportation costs...</div>';
+      transportCostComparisonDiv.classList.add('hidden');
+
+      let weatherHTML = '';
+      try {
+        const data = await getWeatherDataReal(district.coords.lat, district.coords.lon, formatDateISO(start), formatDateISO(end));
+        const bestMonths = district.bestMonths || [];
+        const isGoodTime = bestMonths.includes(start.toLocaleString('default', { month: 'short' }));
+        const max = (data.daily?.temperature_2m_max || [])[0];
+        const min = (data.daily?.temperature_2m_min || [])[0];
+        const precip = (data.daily?.precipitation_sum || [])[0];
+        weatherHTML = `
+          <div class="weather-result ${isGoodTime ? '': 'warning'}">
+            <div style="font-weight: 700; margin-bottom: 6px;">${isGoodTime ? '✅ Generally Good Time to Visit' : '⚠️ May Not Be Peak Season'}</div>
+            <div><strong>Forecast near start date:</strong></div>
+            <div style="margin-left: 10px;">Max: ${max ?? '–'}°C · Min: ${min ?? '–'}°C · Precip (day): ${precip ?? '–'} mm</div>
+            ${!isGoodTime ? `<div style="margin-top: 6px; color:#f59e0b;">Consider visiting during: ${bestMonths.join(', ')}</div>` : ''}
+            <div class="muted" style="margin-top: 6px;">Powered by Open‑Meteo. For more accuracy, cross-check on your preferred weather app.</div>
+          </div>
+        `;
+      } catch (e) {
+        const w = simpleWeatherFallback();
+        weatherHTML = `
+          <div class="weather-result warning">
+            <div style="font-weight: 700; margin-bottom: 6px;">Weather service unavailable — showing an estimate</div>
+            <div style="margin-left: 10px;">Temperature: ${w.temp}°C · Condition: ${w.condition} · Humidity: ${w.humidity}%</div>
+            <div class="muted" style="margin-top: 6px;">For accurate forecasts, use a reliable weather app.</div>
+          </div>
+        `;
+      }
+      weatherResult.innerHTML = weatherHTML;
+
+      const selectedTransportCost = calculateTransportCost(district, transportMethod, numberOfTravelers);
+      transportCostAnalysisDiv.innerHTML = `
+        <div class="card" style="background: rgba(255,255,255,0.06);">
+          <div class="section-title">🚗 Transportation Cost (Selected)</div>
+          <div style="font-size: 14px; color: #cbd5e1;">
+            From Bangalore to ${currentDistrict} by ${transportMethod.replace(/([A-Z])/g, ' $1').trim().toLowerCase()}:
+            <div style="font-weight: 800; font-size: 20px; color: #fcd34d; margin-top: 6px;">₹${selectedTransportCost.toLocaleString()}</div>
+            <div class="muted" style="margin-top: 6px;">Estimates only. Actuals vary by fuel prices, mileage, ticket class, etc.</div>
+          </div>
+        </div>
+      `;
+
+      let comparisonHTML = '<div style="font-size: 14px; color: #cbd5e1;">';
+      const availableTransportMethods = Object.keys(district.transport.costFromBangalore || {});
+      if (availableTransportMethods.length > 0) {
+        comparisonHTML += '<div style="font-weight: 700; margin-bottom: 6px;">Estimated Costs by Method</div><ul class="list">';
+        availableTransportMethods.forEach(method => {
+          const cost = calculateTransportCost(district, method, numberOfTravelers);
+          comparisonHTML += `<li>${method.replace(/([A-Z])/g, ' $1').trim()}: <span style="font-weight: 800; color: ${method === transportMethod ? '#34d399' : '#fcd34d'};">₹${cost.toLocaleString()}</span></li>`;
+        });
+        comparisonHTML += '</ul><div class="muted" style="margin-top: 6px;">Costs are one‑way estimates from Bangalore.</div>';
+      } else {
+        comparisonHTML += '<p>No transport cost data available for this district.</p>';
+      }
+      comparisonHTML += '</div>';
+      el('comparisonContent').innerHTML = comparisonHTML;
+      transportCostComparisonDiv.classList.remove('hidden');
+
+      generateItinerary(start, end);
+    }
+
+    function silentReplan() {
+      const startDateStr = el('startDate').value;
+      const endDateStr = el('endDate').value;
+      if (!currentDistrict || !startDateStr || !endDateStr) return;
+      checkWeatherAndPlan();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Date constraints & defaults
+      const today = new Date().toISOString().split('T')[0];
+      el('startDate').min = today;
+      el('endDate').min = today;
+      el('numberOfTravelers').value = 1;
+
+      initMap();
+      initInterestPills();
+
+      el('planBtn').addEventListener('click', checkWeatherAndPlan);
+      el('backBtn').addEventListener('click', goBack);
+
+      // Auto re-plan on inputs
+      ['startDate','endDate','numberOfTravelers','estimatedHotelCost','estimatedFoodCost','estimatedTransportCost','budgetCategory','transportMethod','dailyHours','shoppingPerDay','optionalActivitiesPerDay','contingencyPercent']
+        .forEach(id => el(id).addEventListener(id.includes('Date') ? 'change' : 'input', silentReplan));
+    });
+  </script>
+</body>
+</html>
